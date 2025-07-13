@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class UserController extends Controller
@@ -9,16 +10,27 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $user = auth()->user();
+        $subEmp = $this->getSubEmployees($user->id);
+        return response()->json($subEmp['children']);
+    }
 
-        if ($user->isAdmin()) {
-            // Admin: Get all direct employee and their employee (recursively)
-            $employees = $user->children()->with('children.children')->get();
-            return response()->json($employees);
+    protected function getSubEmployees($userId)
+    {
+        $user = User::find($userId);
+        $children = User::where('parent_id', $userId)->get();
+
+        $result = [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'children' => []
+        ];
+
+        foreach ($children as $child) {
+            $result['children'][] = $this->getSubEmployees($child->id);
         }
 
-        // Employee: Just show their direct employees
-        $subEmployees = $user->children;
-        return response()->json($subEmployees);
+        return $result;
     }
 
 }
